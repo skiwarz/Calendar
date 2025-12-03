@@ -693,24 +693,35 @@ class EventActivity : SimpleActivity() {
         val duration = mEvent.endTS - mEvent.startTS
         mOriginalStartTS = realStart
         mOriginalEndTS = realStart + duration
+        mIsAllDayEvent = mEvent.getIsAllDay()
 
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
         binding.eventToolbar.title = getString(R.string.edit_event)
         mOriginalTimeZone = mEvent.timeZone
-        if (config.allowChangingTimeZones) {
-            try {
-                mEventStartDateTime = Formatter.getDateTimeFromTS(realStart)
-                    .withZone(DateTimeZone.forID(mOriginalTimeZone))
-                mEventEndDateTime = Formatter.getDateTimeFromTS(realStart + duration)
-                    .withZone(DateTimeZone.forID(mOriginalTimeZone))
-            } catch (e: Exception) {
-                showErrorToast(e)
+        if (mIsAllDayEvent) {
+            val tz = try {
+                DateTimeZone.forID(mOriginalTimeZone)
+            } catch (ignored: IllegalArgumentException) {
+                DateTimeZone.getDefault()
+            }
+            mEventStartDateTime = Formatter.getDateTimeFromTS(realStart, tz)
+            mEventEndDateTime = Formatter.getDateTimeFromTS(realStart + duration, tz)
+        } else {
+            if (config.allowChangingTimeZones) {
+                try {
+                    mEventStartDateTime = Formatter.getDateTimeFromTS(realStart)
+                        .withZone(DateTimeZone.forID(mOriginalTimeZone))
+                    mEventEndDateTime = Formatter.getDateTimeFromTS(realStart + duration)
+                        .withZone(DateTimeZone.forID(mOriginalTimeZone))
+                } catch (e: Exception) {
+                    showErrorToast(e)
+                    mEventStartDateTime = Formatter.getDateTimeFromTS(realStart)
+                    mEventEndDateTime = Formatter.getDateTimeFromTS(realStart + duration)
+                }
+            } else {
                 mEventStartDateTime = Formatter.getDateTimeFromTS(realStart)
                 mEventEndDateTime = Formatter.getDateTimeFromTS(realStart + duration)
             }
-        } else {
-            mEventStartDateTime = Formatter.getDateTimeFromTS(realStart)
-            mEventEndDateTime = Formatter.getDateTimeFromTS(realStart + duration)
         }
 
         binding.eventTitle.setText(mEvent.title)
